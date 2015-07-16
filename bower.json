@@ -1,0 +1,23 @@
+{
+  "name": "ace-test",
+  "main": "index.js",
+  "version": "0.0.0",
+  "authors": [
+    "Victor Queiroz <victorcqueirozg@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "www/lib",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular-animate": "~1.4.3",
+    "bootstrap-sass-official": "~3.3.5",
+    "angular-ui-router": "~0.2.15",
+    "fontawesome": "~4.3.0"
+  }
+}

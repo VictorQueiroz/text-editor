@@ -1,0 +1,60 @@
+$tab-bg: rgb(116, 116, 116);
+$tab-active-bg: darken($tab-bg, 18%);
+
+.tabs-list {
+	padding-left: 0;
+	display: flex;
+	list-style-type: none;
+	justify-content: flex-start;
+	margin: 3px 0px;
+
+	> li {
+		&.active a {
+			background-color: $tab-active-bg;
+		}
+
+		a {
+			border-radius: 4px;
+		  background-color: $tab-bg;
+		  padding: 6px;
+		  color: #fff;
+		  margin: 0 4px 0 0;
+		  display: flex;
+		  justify-content: center;
+		  align-items: center;
+		  cursor: pointer;
+
+		  &:hover {
+		  	text-decoration: none;
+		  }
+
+			.tab-icon {
+				align-self: center;
+				margin-left: 4px;
+
+				.close,
+				.circle {
+					@extend .fa;
+				}
+
+			  .close {
+			  	@extend .fa-times;
+			  }
+
+			  .circle {
+					@extend .fa-circle;
+			  }
+
+				&:hover .circle:not(.ng-hide) {
+					display: none;
+				}
+			  &:hover .circle:not(.ng-hide)+.close.ng-hide {
+			  	display: block !important;
+			  }
+			}
+			.tab-text {
+				align-self: center;
+			}
+		}
+	}
+}

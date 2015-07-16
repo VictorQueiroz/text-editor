@@ -1,0 +1,7 @@
+ul.tabs-list(ng-show="tabs.length > 0")
+	li(ng-repeat="tab in tabs track by $index", ng-click="setTabActive(tab)", ng-class="{ active: isActive(tab) }")
+		a
+			.tab-text {{ tab.file.name }}
+			.tab-icon
+				i.circle(ng-show="tab.hasModifiedContent()")
+				i.close(ng-show="!tab.hasModifiedContent()", ng-click="tab.close()")

@@ -1,0 +1,20 @@
+$file-item-bg: #fff;
+$file-item-bg-hover: darken($file-item-bg, 4%);
+
+directory-structure {
+	display: block;
+
+	.files-list {
+		padding-left: 0;
+
+		li > a {
+			display: block;
+			padding: 9px;
+			cursor: pointer;
+
+			&:hover {
+				background-color: $file-item-bg-hover;
+			}
+		}
+	}
+}
