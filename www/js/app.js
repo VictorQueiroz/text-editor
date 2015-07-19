@@ -30,6 +30,7 @@ var EditSession 		= ace.require('ace/edit_session').EditSession;
 var UndoManager 	= ace.require('ace/undomanager').UndoManager;
 var isUndefined		= _.isUndefined;
 var EventEmitter		= require('events');
+
 var id = 0;
 function getId() {
 	id++;
@@ -59,6 +60,7 @@ function Tab (file, editorSession) {
 Tab.prototype = {
 	close: function () {
 		this.emit('destroy');
+		this.editorSession.destroy();
 		this.file = undefined;
 	},
 
@@ -203,7 +205,8 @@ TextEditor.prototype = {
 	},
 
 	removeTab: function (tab) {
-		if(!confirm('Are you sure you want to close this tab?')) {
+		if(tab.hasModifiedContent() &&
+			!(confirm('Are you sure you want to close this tab?'))) {
 			return;
 		}
 
@@ -307,8 +310,7 @@ function TextEditorFactory () {
 	return TextEditor;
 }
 
-angular.module('textEditor')
-.factory('EditorService', ["$q", function ($q) {
+function EditorServiceFactory() {
 	function EditorService () {
 		EventEmitter.call(this);
 	}
@@ -332,8 +334,137 @@ angular.module('textEditor')
 	extend(EditorService.prototype, EventEmitter.prototype);
 
 	return new EditorService();
-}])
-.factory('TextEditor', TextEditorFactory)
+}
+
+angular.module('textEditor')
+.factory('EditorService', EditorServiceFactory)
+.factory('TextEditor', TextEditorFactory);
+angular.module('textEditor')
+.factory('$process', ["$window", function ($window) {
+	return $window.process;
+}]);
+function Node(name) {
+	this.name = name;
+	this.childrens = [];
+}
+Node.prototype = {
+	setParent: function (node) {
+		this.parent = node;
+		return this;
+	},
+	getParent: function () {
+		return this.parent;
+	},
+	addChilds: function (nodes) {
+		forEach(nodes, function (node) {
+			this.addChild(node);
+		}, this);
+
+		return this;
+	},
+	addChild: function (node) {
+		this.childrens.push(node.setParent(this));
+		return this;
+	},
+	getChilds: function () {
+		return this.childrens;
+	},
+	hasChild: function (childNode) {
+		if(childNode) {
+			return this.childrens.indexOf(childNode) > -1;
+		} else {
+			return this.childrens.length > 0;
+		}
+	},
+	compareName: function (name) {
+		return this.name === name;
+	},
+	getChildByName: function (name) {
+		return first(filter(this.getChilds(), function (node) {
+			return node && node.compareName(name);
+		}));
+	},
+	hasParent: function () {
+		return !this.isParent();
+	},
+	isParent: function () {
+		return isUndefined(this.parent);
+	}
+};
+
+angular.module('textEditor')
+.factory('Node', function () {
+	return Node;
+});
+var _						= require('lodash');
+var map					= _.map;
+var first				= _.first;
+var filter				= _.filter;
+var forEach			= _.forEach;
+var isUndefined	= _.isUndefined;
+
+function createFile(filePath) {
+	return {
+		path: filePath,
+		name: first(/([A-z]+(\s)?\.[A-z]+)$/.exec(path))
+	};
+}
+
+function DirectoryStructure(paths) {
+	this.paths = paths;
+	this.nodes = [];
+
+	forEach(this.paths, function (segments) {
+		segments = segments.split('/');
+
+		var nodeName = first(segments);	
+		var parentNode = this.getNode(nodeName) ||
+											new Node(nodeName);
+
+		this.addNode(this.createNodes(segments, parentNode, 1));
+	}, this);
+}
+DirectoryStructure.prototype = {
+	addNode: function (node) {
+		if(this.getNode(node.name)) {
+			return true;
+		} else {
+			this.nodes.push(node);
+		}
+	},
+	getNode: function (name) {	
+		return first(filter(this.nodes, function (node) {
+			return node.compareName(name);
+		}));
+	},
+	getNodes: function () {
+		return this.nodes;
+	},
+	createNodes: function (segments, parentNode, depth) {
+		forEach(segments.slice(depth, depth + 1), function (segment, index) {
+			var childNode = parentNode.getChildByName(segment) || new Node(segment);
+
+			// If the parent node doesn't have the actual
+			// children node, add to his list 
+			if(!parentNode.hasChild(childNode)) {
+				parentNode.addChild(childNode);
+			}
+
+			// Now we load the next segments, notice that
+			// now the parent node will be our childNode
+			// and we will have one more depth level
+			this.createNodes(segments, childNode, depth + 1);
+		}, this);
+
+		return parentNode;
+	}
+};
+
+angular.module('textEditor')
+.factory('DirectoryStructure', function () {
+	return DirectoryStructure;
+});
+angular.module('textEditor')
 .directive('textEditor', ["TextEditor", "EditorService", function (TextEditor, EditorService) {
 	return {
 		scope: {
@@ -374,36 +505,22 @@ angular.module('textEditor')
 				return activeTab && activeTab.id === tab.id;
 			};
 		}],
-		templateUrl: 'components/tabs-list.html'
+		templateUrl: 'app-editor/tabs-list.html'
 	};
 }])
-angular.module('textEditor')
-.factory('$process', ["$window", function ($window) {
-	return $window.process;
-}]);
-var _				= require('lodash');
-var fs 			= require('fs');
-var glob 		= require('glob');
-var path 		= require('path');
-var first		= _.first;
+var Q 		= require('q');
+var fs 		= require('../modules/fs');
+var path 	= require('path');
+var glob		= require('../modules/glob');
 
-angular.module('textEditor')
-.directive('directoryStructure', ["$process", "EditorService", function ($process, EditorService) {
+function DirectoryStructureFactory ($process, EditorService, DirectoryStructure) {
 	return {
-		templateUrl: 'components/directory-structure.html',
+		templateUrl: 'app-editor/directory-structure.html',
 		scope: {},
 		controller: ["$scope", "$element", "$attrs", function ($scope, $element, $attrs) {
+			$scope.files = [];
+
 			var cwd = $process.cwd();
-
-			function getFileName(path) {
-				return first(/([A-z]+(\s)?\.[A-z]+)$/.exec(path));
-			}
-
-			var files = glob.sync(path.resolve(cwd, '*.*')).map(function (path) {
-				return { path: path, name: getFileName(path) };
-			});
-
-			$scope.files = files;
 
 			var defaultEditor = EditorService.getEditor('default');
 
@@ -415,10 +532,38 @@ angular.module('textEditor')
 				var activeTab = defaultEditor.getActiveTab();
 				return activeTab && activeTab.compareFile(file);
 			};
+
+			fs.readdir(process.cwd()).then(function (files) {
+				return Q.all(map(filter(files, function (file) {
+					return file !== 'node_modules';
+				}), function (file) {
+					return fs.stat(file).then(function (stat) {
+						if(stat.isDirectory()) {
+							return glob(path.resolve(file, '**/*.*'));
+						} else {
+							return file;
+						}
+					});
+				}));
+			}).then(function(paths) {
+				console.log(paths)
+				paths = map(_.flattenDeep(paths), function (path) {
+					return path.replace(`${process.cwd()}/`, '');
+				});
+				var directoryStructure = new DirectoryStructure(paths);
+
+				_.forEach(directoryStructure.getNodes(), function (node) {
+					$scope.files.push({name: node.name}); 
+				});
+			});
 		}],
 		controllerAs: 'structureCtrl'
 	};
-}])
+}
+DirectoryStructureFactory.$inject = ["$process", "EditorService", "DirectoryStructure"];
+
+angular.module('textEditor')
+.directive('directoryStructure', DirectoryStructureFactory);
 function EditorController($scope) {
 }
 EditorController.$inject = ["$scope"];
@@ -428,7 +573,7 @@ angular.module('textEditor')
 	$stateProvider
 	.state('app.editor', {
 		url: '/editor',
-		templateUrl: 'app-editor.html',
+		templateUrl: 'app-editor/app-editor.html',
 		controller: EditorController,
 		controllerAs: 'editorCtrl'
 	});

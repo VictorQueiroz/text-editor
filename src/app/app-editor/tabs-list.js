@@ -16,6 +16,6 @@ angular.module('textEditor')
 				return activeTab && activeTab.id === tab.id;
 			};
 		},
-		templateUrl: 'components/tabs-list.html'
+		templateUrl: 'app-editor/tabs-list.html'
 	};
 })

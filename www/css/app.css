@@ -7049,10 +7049,6 @@ button.close {
   .hidden-print {
     display: none !important; } }
 
-.text-editor {
-  width: 100%;
-  height: 100%; }
-
 directory-structure {
   display: block; }
   directory-structure .files-list {
@@ -7094,24 +7090,24 @@ directory-structure {
     .tabs-list > li a .tab-text {
       align-self: center; }
 
+.text-editor {
+  width: 100%;
+  height: 100%; }
+
 .row .directory-structure-column {
   position: relative;
+  float: left;
+  width: 25%;
   min-height: 1px;
   padding-left: 15px;
   padding-right: 15px;
   padding-right: 0; }
-  @media (min-width: 992px) {
-    .row .directory-structure-column {
-      float: left;
-      width: 25%; } }
 
 .row .text-editor-column {
   position: relative;
+  float: left;
+  width: 75%;
   min-height: 1px;
   padding-left: 15px;
   padding-right: 15px;
   padding-left: 0; }
-  @media (min-width: 992px) {
-    .row .text-editor-column {
-      float: left;
-      width: 75%; } }

@@ -6,7 +6,7 @@ angular.module('textEditor')
 	$stateProvider
 	.state('app.editor', {
 		url: '/editor',
-		templateUrl: 'app-editor.html',
+		templateUrl: 'app-editor/app-editor.html',
 		controller: EditorController,
 		controllerAs: 'editorCtrl'
 	});

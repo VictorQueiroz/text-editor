@@ -14,6 +14,7 @@ var EditSession 		= ace.require('ace/edit_session').EditSession;
 var UndoManager 	= ace.require('ace/undomanager').UndoManager;
 var isUndefined		= _.isUndefined;
 var EventEmitter		= require('events');
+
 var id = 0;
 function getId() {
 	id++;
@@ -43,6 +44,7 @@ function Tab (file, editorSession) {
 Tab.prototype = {
 	close: function () {
 		this.emit('destroy');
+		this.editorSession.destroy();
 		this.file = undefined;
 	},
 
@@ -187,7 +189,8 @@ TextEditor.prototype = {
 	},
 
 	removeTab: function (tab) {
-		if(!confirm('Are you sure you want to close this tab?')) {
+		if(tab.hasModifiedContent() &&
+			!(confirm('Are you sure you want to close this tab?'))) {
 			return;
 		}
 
@@ -291,8 +294,7 @@ function TextEditorFactory () {
 	return TextEditor;
 }
 
-angular.module('textEditor')
-.factory('EditorService', function ($q) {
+function EditorServiceFactory() {
 	function EditorService () {
 		EventEmitter.call(this);
 	}
@@ -316,27 +318,8 @@ angular.module('textEditor')
 	extend(EditorService.prototype, EventEmitter.prototype);
 
 	return new EditorService();
-})
-.factory('TextEditor', TextEditorFactory)
-.directive('textEditor', function (TextEditor, EditorService) {
-	return {
-		scope: {
-			theme: '=theme'
-		},
-		link: function (scope, element, attrs) {
-			var textEditor = new TextEditor(element);
+}
 
-			EditorService.setEditor('default', textEditor);
-
-			scope.$watch('theme', function (themeName) {
-				textEditor.setOption('theme', themeName);
-			});
-
-			textEditor.on('change', function () {
-				if(!(scope.$$phase || scope.$root.$$phase)) {
-					scope.$apply();
-				}
-			});
-		}
-	};
-});
+angular.module('textEditor')
+.factory('EditorService', EditorServiceFactory)
+.factory('TextEditor', TextEditorFactory);

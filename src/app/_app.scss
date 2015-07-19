@@ -1,13 +1,3 @@
 @import "components/components";
 
-.row {
-	.directory-structure-column {
-		@include make-md-column(3);
-
-		padding-right: 0;
-	}
-	.text-editor-column {
-		@include make-md-column(9);
-		padding-left: 0;
-	}
-}
+@import "app-editor/app-editor";
