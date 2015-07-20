@@ -40,6 +40,7 @@ _.extend(NodeElement.prototype, Node.prototype, {
 		if(this.hasChild()) {
 			node.setAttribute('node-has-children', '');
 		} else {
+			node.setAttribute('node-is-file', '');
 			node.setAttribute('ng-click', `structureCtrl.readFile('${this.getPath()}')`);
 		}
 

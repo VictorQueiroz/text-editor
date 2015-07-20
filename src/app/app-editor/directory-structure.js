@@ -81,8 +81,17 @@ angular.module('textEditor')
 			.children('a')
 			.append('<i class="chevron">');
 
+			element
+			.children('a')
+			.append('<i class="folder">');
+
 			return postLink;
 		}
+	};
+})
+.directive('nodeIsFile', function () {
+	return function (scope, element, attrs) {
+		element.children('a').append('<i class="file">')
 	};
 })
 .directive('directoryStructure', DirectoryStructureFactory);

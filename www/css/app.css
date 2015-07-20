@@ -12,7 +12,8 @@
   font-weight: normal;
   font-style: normal; }
 
-.fa, directory-structure .files-list li[node-has-children] a .chevron, .tabs-list > li a .tab-icon .close,
+.fa, directory-structure .files-list li:not([node-has-children]) a .file, directory-structure .files-list li[node-has-children] a .folder,
+directory-structure .files-list li[node-has-children] a .chevron, .tabs-list > li a .tab-icon .close,
 .tabs-list > li a .tab-icon .circle {
   display: inline-block;
   font: normal normal normal 14px/1 FontAwesome;
@@ -71,11 +72,13 @@
 .pull-left {
   float: left; }
 
-.fa.pull-left, directory-structure .files-list li[node-has-children] a .pull-left.chevron, .tabs-list > li a .tab-icon .pull-left.close,
+.fa.pull-left, directory-structure .files-list li:not([node-has-children]) a .pull-left.file, directory-structure .files-list li[node-has-children] a .pull-left.folder,
+directory-structure .files-list li[node-has-children] a .pull-left.chevron, .tabs-list > li a .tab-icon .pull-left.close,
 .tabs-list > li a .tab-icon .pull-left.circle {
   margin-right: .3em; }
 
-.fa.pull-right, directory-structure .files-list li[node-has-children] a .pull-right.chevron, .tabs-list > li a .tab-icon .pull-right.close,
+.fa.pull-right, directory-structure .files-list li:not([node-has-children]) a .pull-right.file, directory-structure .files-list li[node-has-children] a .pull-right.folder,
+directory-structure .files-list li[node-has-children] a .pull-right.chevron, .tabs-list > li a .tab-icon .pull-right.close,
 .tabs-list > li a .tab-icon .pull-right.circle {
   margin-left: .3em; }
 
@@ -231,7 +234,7 @@
 .fa-home:before {
   content: ""; }
 
-.fa-file-o:before {
+.fa-file-o:before, directory-structure .files-list li:not([node-has-children]) a .file:before {
   content: ""; }
 
 .fa-clock-o:before {
@@ -936,7 +939,7 @@
 .fa-github-alt:before {
   content: ""; }
 
-.fa-folder-o:before {
+.fa-folder-o:before, directory-structure .files-list li[node-has-children] a .folder:before {
   content: ""; }
 
 .fa-folder-open-o:before {
@@ -7061,26 +7064,38 @@ directory-structure {
       padding-left: 8px; }
     directory-structure .files-list li > a {
       display: block;
-      padding: 9px;
-      color: #fff; }
+      padding: 4px;
+      color: #fff;
+      padding-left: 30px; }
       directory-structure .files-list li > a:hover {
         text-decoration: none; }
     directory-structure .files-list li:not([node-has-children]):hover {
       background-color: rgba(255, 255, 255, 0.2); }
     directory-structure .files-list li:not([node-has-children]) a {
-      cursor: pointer; }
+      cursor: pointer;
+      position: relative; }
+      directory-structure .files-list li:not([node-has-children]) a .file {
+        position: absolute;
+        left: 9px;
+        top: 7px; }
+    directory-structure .files-list li:not([node-has-children]):focus a {
+      background-color: rgba(255, 255, 255, 0.2); }
     directory-structure .files-list li[node-has-children] {
       position: relative; }
       directory-structure .files-list li[node-has-children]:not(.opened) > ul#childrens {
         display: none; }
+      directory-structure .files-list li[node-has-children] a .folder,
       directory-structure .files-list li[node-has-children] a .chevron {
         position: absolute;
         color: #C3C3C3;
+        top: 7px; }
+      directory-structure .files-list li[node-has-children] a .chevron {
         right: 9px;
-        top: 12px;
         transform: rotateZ(0deg);
         transition: 300ms all ease-in-out;
         text-shadow: 0px -1px 0px #645e5f; }
+      directory-structure .files-list li[node-has-children] a .folder {
+        left: 9px; }
       directory-structure .files-list li[node-has-children] > ul#childrens {
         background-color: transparent; }
     directory-structure .files-list li.opened > a .chevron {
