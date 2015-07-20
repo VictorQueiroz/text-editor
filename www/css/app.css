@@ -12,7 +12,7 @@
   font-weight: normal;
   font-style: normal; }
 
-.fa, .tabs-list > li a .tab-icon .close,
+.fa, directory-structure .files-list li[node-has-children] a .chevron, .tabs-list > li a .tab-icon .close,
 .tabs-list > li a .tab-icon .circle {
   display: inline-block;
   font: normal normal normal 14px/1 FontAwesome;
@@ -71,11 +71,11 @@
 .pull-left {
   float: left; }
 
-.fa.pull-left, .tabs-list > li a .tab-icon .pull-left.close,
+.fa.pull-left, directory-structure .files-list li[node-has-children] a .pull-left.chevron, .tabs-list > li a .tab-icon .pull-left.close,
 .tabs-list > li a .tab-icon .pull-left.circle {
   margin-right: .3em; }
 
-.fa.pull-right, .tabs-list > li a .tab-icon .pull-right.close,
+.fa.pull-right, directory-structure .files-list li[node-has-children] a .pull-right.chevron, .tabs-list > li a .tab-icon .pull-right.close,
 .tabs-list > li a .tab-icon .pull-right.circle {
   margin-left: .3em; }
 
@@ -514,7 +514,7 @@
 .fa-chevron-up:before {
   content: ""; }
 
-.fa-chevron-down:before {
+.fa-chevron-down:before, directory-structure .files-list li[node-has-children] a .chevron:before {
   content: ""; }
 
 .fa-retweet:before {
@@ -7050,28 +7050,62 @@ button.close {
     display: none !important; } }
 
 directory-structure {
-  display: block; }
+  display: block;
+  height: 100%;
+  overflow: auto;
+  background-color: #383435; }
   directory-structure .files-list {
     padding-left: 0; }
+    directory-structure .files-list ul {
+      list-style-type: none;
+      padding-left: 8px; }
     directory-structure .files-list li > a {
       display: block;
       padding: 9px;
-      cursor: pointer; }
+      color: #fff; }
       directory-structure .files-list li > a:hover {
-        background-color: whitesmoke; }
+        text-decoration: none; }
+    directory-structure .files-list li:not([node-has-children]):hover {
+      background-color: rgba(255, 255, 255, 0.2); }
+    directory-structure .files-list li:not([node-has-children]) a {
+      cursor: pointer; }
+    directory-structure .files-list li[node-has-children] {
+      position: relative; }
+      directory-structure .files-list li[node-has-children]:not(.opened) > ul#childrens {
+        display: none; }
+      directory-structure .files-list li[node-has-children] a .chevron {
+        position: absolute;
+        color: #fff;
+        right: 9px;
+        top: 12px;
+        transform: rotateZ(0deg);
+        transition: 300ms all ease-in-out;
+        text-shadow: 0px -1px 0px #645e5f; }
+      directory-structure .files-list li[node-has-children] > ul#childrens {
+        background-color: transparent; }
+    directory-structure .files-list li.opened > a .chevron {
+      transform: rotateZ(180deg); }
+    directory-structure .files-list li.opened-add > a .chevron {
+      transform: rotateZ(0deg); }
+    directory-structure .files-list li.opened-add-active > a .chevron {
+      transform: rotateZ(180deg); }
+    directory-structure .files-list li.opened-remove > a .chevron {
+      transform: rotateZ(180deg); }
+    directory-structure .files-list li.opened-remove-active a .chevron {
+      transform: rotateZ(0deg); }
 
 .tabs-list {
-  padding-left: 0;
+  padding: 0px;
   display: flex;
   list-style-type: none;
   justify-content: flex-start;
-  margin: 3px 0px; }
+  margin: 0px;
+  background-color: #383435; }
   .tabs-list > li.active a {
-    background-color: #464646; }
+    background-color: #686062; }
   .tabs-list > li a {
-    border-radius: 4px;
-    background-color: #747474;
-    padding: 6px;
+    background-color: #383435;
+    padding: 10px;
     color: #fff;
     margin: 0 4px 0 0;
     display: flex;

@@ -10,6 +10,9 @@ Node.prototype = {
 	getParent: function () {
 		return this.parent;
 	},
+	getName: function () {
+		return this.name;
+	},
 	addChilds: function (nodes) {
 		forEach(nodes, function (node) {
 			this.addChild(node);
@@ -47,7 +50,4 @@ Node.prototype = {
 	}
 };
 
-angular.module('textEditor')
-.factory('Node', function () {
-	return Node;
-});
+module.exports = Node;

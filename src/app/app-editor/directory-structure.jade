@@ -1,3 +1,0 @@
-ul.files-list
-	li(ng-repeat="file in files track by $index", ng-class="{ active: structureCtrl.isActive(file) }")
-		a(ng-click="structureCtrl.readFile(file)") {{file.name}}

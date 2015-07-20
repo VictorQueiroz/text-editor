@@ -1,12 +1,15 @@
-$tab-bg: rgb(116, 116, 116);
-$tab-active-bg: darken($tab-bg, 18%);
+$tabs-list-bg: #383435;
+
+$tab-bg: $tabs-list-bg;
+$tab-active-bg: lighten($tab-bg, 18%);
 
 .tabs-list {
-	padding-left: 0;
+	padding: 0px;
 	display: flex;
 	list-style-type: none;
 	justify-content: flex-start;
-	margin: 3px 0px;
+	margin: 0px;
+	background-color: $tabs-list-bg;
 
 	> li {
 		&.active a {
@@ -14,9 +17,8 @@ $tab-active-bg: darken($tab-bg, 18%);
 		}
 
 		a {
-			border-radius: 4px;
 		  background-color: $tab-bg;
-		  padding: 6px;
+		  padding: 10px;
 		  color: #fff;
 		  margin: 0 4px 0 0;
 		  display: flex;

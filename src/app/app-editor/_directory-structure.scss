@@ -1,20 +1,83 @@
 $file-item-bg: #fff;
-$file-item-bg-hover: darken($file-item-bg, 4%);
+$file-item-color: #fff;
+$file-item-bg-hover: rgba(255,255,255,.2);
+
+$dir-structure-bg: #383435;
 
 directory-structure {
 	display: block;
+	height: 100%;
+	overflow: auto;
+	background-color: $dir-structure-bg;
 
 	.files-list {
 		padding-left: 0;
 
+		ul {
+			list-style-type: none;
+			padding-left: 8px;
+		}
+
 		li > a {
 			display: block;
 			padding: 9px;
-			cursor: pointer;
+			color: $file-item-color;
 
+			&:hover {
+				text-decoration: none;
+			}
+		}
+
+		li:not([node-has-children]) {
 			&:hover {
 				background-color: $file-item-bg-hover;
 			}
+			a {
+				cursor: pointer;
+			}
+		}
+
+		li[node-has-children] {
+			position: relative;
+
+			&:not(.opened) > ul#childrens {
+				display: none;
+			}
+
+			a .chevron {
+				position: absolute;
+				color: #fff;
+  			right: 9px;
+  			top: 12px;
+  			transform: rotateZ(0deg);
+  			transition: 300ms all ease-in-out;
+  			text-shadow: 0px -1px 0px rgb(100, 94, 95);
+
+				@extend .fa, .fa-chevron-down;
+			}
+
+			> ul#childrens {
+				background-color: transparent;
+			}
+		}
+
+		li.opened > a .chevron {
+			transform: rotateZ(180deg);
+		}
+
+		li.opened-add > a .chevron {
+			transform: rotateZ(0deg);
+		}
+		li.opened-add-active > a .chevron {
+			transform: rotateZ(180deg);
+		}
+
+		li.opened-remove > a .chevron {
+			transform: rotateZ(180deg);
+		}
+
+		li.opened-remove-active a .chevron {
+			transform: rotateZ(0deg);
 		}
 	}
 }

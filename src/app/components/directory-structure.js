@@ -1,16 +1,15 @@
 var _						= require('lodash');
+var Q 					= require('q');
+var fs 					= require('../modules/fs');
 var map					= _.map;
+var path 				= require('path');
+var glob					= require('../modules/glob');
+var Node 				= require('../modules/node-element');
 var first				= _.first;
 var filter				= _.filter;
 var forEach			= _.forEach;
+var flattenDeep	= _.flattenDeep;
 var isUndefined	= _.isUndefined;
-
-function createFile(filePath) {
-	return {
-		path: filePath,
-		name: first(/([A-z]+(\s)?\.[A-z]+)$/.exec(path))
-	};
-}
 
 function DirectoryStructure(paths) {
 	this.paths = paths;
@@ -26,6 +25,27 @@ function DirectoryStructure(paths) {
 		this.addNode(this.createNodes(segments, parentNode, 1));
 	}, this);
 }
+DirectoryStructure.getStructure = function () {
+	return fs.readdir(process.cwd()).then(function (files) {
+		return Q.all(map(filter(files, function (file) {
+			return file !== 'node_modules';
+		}), function (file) {
+			return fs.stat(file).then(function (stat) {
+				if(stat.isDirectory()) {
+					return glob(path.resolve(file, '**/*.*'));
+				} else {
+					return file;
+				}
+			});
+		}));
+	}).then(function(paths) {
+		paths = map(flattenDeep(paths), function (path) {
+			return path.replace(`${process.cwd()}/`, '');
+		});
+
+		return new DirectoryStructure(paths);
+	});
+};
 DirectoryStructure.prototype = {
 	addNode: function (node) {
 		if(this.getNode(node.name)) {
@@ -33,6 +53,15 @@ DirectoryStructure.prototype = {
 		} else {
 			this.nodes.push(node);
 		}
+	},
+	getElements: function () {
+		var container = angular.element('<ul>');
+
+		forEach(this.nodes, function (node) {
+			container.append(node.getElement());
+		});
+
+		return container;
 	},
 	getNode: function (name) {	
 		return first(filter(this.nodes, function (node) {

@@ -1,9 +1,13 @@
+var _			= require('lodash');
+var curry = _.curry;
+
 function AppController ($scope) {
 }
 AppController.$inject = ["$scope"];
 
 angular.module('textEditor', [
-	'ui.router'
+	'ui.router',
+	'ngAnimate'
 ])
 .config(["$stateProvider", "$urlRouterProvider", function ($stateProvider, $urlRouterProvider) {
 	$stateProvider
@@ -343,72 +347,33 @@ angular.module('textEditor')
 .factory('$process', ["$window", function ($window) {
 	return $window.process;
 }]);
-function Node(name) {
-	this.name = name;
-	this.childrens = [];
+function $HelpersFactory($timeout) {
+	return {
+		digest: curry(function (scope, fn) {
+			if(scope.$$phase || scope.$root.$$phase) {
+				fn(scope);
+			} else {
+				scope.$apply(fn);
+			}
+		})
+	};
 }
-Node.prototype = {
-	setParent: function (node) {
-		this.parent = node;
-		return this;
-	},
-	getParent: function () {
-		return this.parent;
-	},
-	addChilds: function (nodes) {
-		forEach(nodes, function (node) {
-			this.addChild(node);
-		}, this);
-
-		return this;
-	},
-	addChild: function (node) {
-		this.childrens.push(node.setParent(this));
-		return this;
-	},
-	getChilds: function () {
-		return this.childrens;
-	},
-	hasChild: function (childNode) {
-		if(childNode) {
-			return this.childrens.indexOf(childNode) > -1;
-		} else {
-			return this.childrens.length > 0;
-		}
-	},
-	compareName: function (name) {
-		return this.name === name;
-	},
-	getChildByName: function (name) {
-		return first(filter(this.getChilds(), function (node) {
-			return node && node.compareName(name);
-		}));
-	},
-	hasParent: function () {
-		return !this.isParent();
-	},
-	isParent: function () {
-		return isUndefined(this.parent);
-	}
-};
+$HelpersFactory.$inject = ["$timeout"];
 
 angular.module('textEditor')
-.factory('Node', function () {
-	return Node;
-});
+.factory('$helpers', $HelpersFactory);
 var _						= require('lodash');
+var Q 					= require('q');
+var fs 					= require('../modules/fs');
 var map					= _.map;
+var path 				= require('path');
+var glob					= require('../modules/glob');
+var Node 				= require('../modules/node-element');
 var first				= _.first;
 var filter				= _.filter;
 var forEach			= _.forEach;
+var flattenDeep	= _.flattenDeep;
 var isUndefined	= _.isUndefined;
-
-function createFile(filePath) {
-	return {
-		path: filePath,
-		name: first(/([A-z]+(\s)?\.[A-z]+)$/.exec(path))
-	};
-}
 
 function DirectoryStructure(paths) {
 	this.paths = paths;
@@ -424,6 +389,27 @@ function DirectoryStructure(paths) {
 		this.addNode(this.createNodes(segments, parentNode, 1));
 	}, this);
 }
+DirectoryStructure.getStructure = function () {
+	return fs.readdir(process.cwd()).then(function (files) {
+		return Q.all(map(filter(files, function (file) {
+			return file !== 'node_modules';
+		}), function (file) {
+			return fs.stat(file).then(function (stat) {
+				if(stat.isDirectory()) {
+					return glob(path.resolve(file, '**/*.*'));
+				} else {
+					return file;
+				}
+			});
+		}));
+	}).then(function(paths) {
+		paths = map(flattenDeep(paths), function (path) {
+			return path.replace(`${process.cwd()}/`, '');
+		});
+
+		return new DirectoryStructure(paths);
+	});
+};
 DirectoryStructure.prototype = {
 	addNode: function (node) {
 		if(this.getNode(node.name)) {
@@ -431,6 +417,15 @@ DirectoryStructure.prototype = {
 		} else {
 			this.nodes.push(node);
 		}
+	},
+	getElements: function () {
+		var container = angular.element('<ul>');
+
+		forEach(this.nodes, function (node) {
+			container.append(node.getElement());
+		});
+
+		return container;
 	},
 	getNode: function (name) {	
 		return first(filter(this.nodes, function (node) {
@@ -508,18 +503,12 @@ angular.module('textEditor')
 		templateUrl: 'app-editor/tabs-list.html'
 	};
 }])
-var Q 		= require('q');
-var fs 		= require('../modules/fs');
-var path 	= require('path');
-var glob		= require('../modules/glob');
-
-function DirectoryStructureFactory ($process, EditorService, DirectoryStructure) {
+function DirectoryStructureFactory ($process, $compile, EditorService, DirectoryStructure) {
 	return {
-		templateUrl: 'app-editor/directory-structure.html',
-		scope: {},
+		scope: {
+			nodes: '=nodes'
+		},
 		controller: ["$scope", "$element", "$attrs", function ($scope, $element, $attrs) {
-			$scope.files = [];
-
 			var cwd = $process.cwd();
 
 			var defaultEditor = EditorService.getEditor('default');
@@ -533,36 +522,65 @@ function DirectoryStructureFactory ($process, EditorService, DirectoryStructure)
 				return activeTab && activeTab.compareFile(file);
 			};
 
-			fs.readdir(process.cwd()).then(function (files) {
-				return Q.all(map(filter(files, function (file) {
-					return file !== 'node_modules';
-				}), function (file) {
-					return fs.stat(file).then(function (stat) {
-						if(stat.isDirectory()) {
-							return glob(path.resolve(file, '**/*.*'));
-						} else {
-							return file;
-						}
-					});
-				}));
-			}).then(function(paths) {
-				console.log(paths)
-				paths = map(_.flattenDeep(paths), function (path) {
-					return path.replace(`${process.cwd()}/`, '');
-				});
-				var directoryStructure = new DirectoryStructure(paths);
+			DirectoryStructure.getStructure().then(function (directoryStructure) {
+				var nodes = directoryStructure.getElements();
 
-				_.forEach(directoryStructure.getNodes(), function (node) {
-					$scope.files.push({name: node.name}); 
-				});
+				nodes.addClass('files-list');
+
+				$compile(nodes)($scope);
+
+				$element.append(nodes);
 			});
 		}],
 		controllerAs: 'structureCtrl'
 	};
 }
-DirectoryStructureFactory.$inject = ["$process", "EditorService", "DirectoryStructure"];
+DirectoryStructureFactory.$inject = ["$process", "$compile", "EditorService", "DirectoryStructure"];
 
 angular.module('textEditor')
+.directive('nodeHasChildren', ["$animate", "$helpers", function ($animate, $helpers) {
+	function postLink (scope, element, attrs) {
+		var apply = $helpers.digest(scope);
+
+		function addClass(addClass) {
+			removeClass(false);
+		}
+
+		function removeClass(rly) {
+			apply(function () {
+				$animate[rly === false && 'addClass' ||
+				_.isUndefined(rly) && 'removeClass'](element, 'opened')
+			});
+		}
+
+		element.on('click', function (event) {
+			var targetEl 	= event.target;
+			var tagName 	= targetEl.tagName;
+
+			if(!(targetEl.tagName === 'A' && targetEl.parentNode === element[0])) {
+				return;
+			}
+
+			var hasClass = element.hasClass('opened');
+
+			if(hasClass) {
+				removeClass();
+			} else {
+				addClass();
+			}
+		});
+	}
+
+	return {
+		compile: function (element, attrs) {
+			element
+			.children('a')
+			.append('<i class="chevron">');
+
+			return postLink;
+		}
+	};
+}])
 .directive('directoryStructure', DirectoryStructureFactory);
 function EditorController($scope) {
 }
