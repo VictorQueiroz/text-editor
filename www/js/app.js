@@ -18,8 +18,155 @@ angular.module('textEditor', [
 	});
 	$urlRouterProvider.otherwise('/app/editor');
 }]);
+angular.module('textEditor')
+.directive('textEditor', ["TextEditor", "EditorService", function (TextEditor, EditorService) {
+	return {
+		scope: {
+			theme: '=theme'
+		},
+		link: function (scope, element, attrs) {
+			var textEditor = new TextEditor(element);
+
+			EditorService.register('default', textEditor);
+
+			scope.$watch('theme', function (themeName) {
+				textEditor.setOption('theme', themeName);
+			});
+
+			textEditor.on('change', function () {
+				if(!(scope.$$phase || scope.$root.$$phase)) {
+					scope.$apply();
+				}
+			});
+		}
+	};
+}]);
+angular.module('textEditor')
+.directive('tabsList', ["EditorService", function (EditorService) {
+	return {
+		restrict: 'E',
+		controller: ["$scope", "$element", "$attrs", function ($scope, $element, $attrs) {
+			var defaultEditor = EditorService.getEditor('default');
+
+			$scope.tabs = defaultEditor.tabs;
+			$scope.setTabActive = function (tab) {
+				defaultEditor.setTabActive(tab);
+			};
+
+			$scope.isActive = function (tab) {
+				var activeTab = defaultEditor.getActiveTab();
+
+				return activeTab && activeTab.id === tab.id;
+			};
+		}],
+		templateUrl: 'app-editor/tabs-list.html'
+	};
+}])
+function DirectoryStructureFactory ($process, $compile, EditorService, DirectoryStructure) {
+	return {
+		scope: {
+			nodes: '=nodes'
+		},
+		controller: ["$scope", "$element", "$attrs", function ($scope, $element, $attrs) {
+			var cwd = $process.cwd();
+
+			var defaultEditor;
+			var editorPromise = EditorService.getEditor('default').then(function (editor) {
+				defaultEditor = editor;
+
+				return editor;
+			});
+
+			this.readFile = function (file) {
+				var fileName = file.match(/([^\/]+)$/)[1];
+
+				editorPromise.then(function (editor) {
+					editor.readFile({ path: file, name: fileName });
+				});
+			};
+
+			this.isActive = function (file) {
+				var activeTab = defaultEditor.getActiveTab();
+				return activeTab && activeTab.compareFile(file);
+			};
+
+			DirectoryStructure.getStructure().then(function (directoryStructure) {
+				var nodes = directoryStructure.getElements();
+
+				nodes.addClass('files-list');
+
+				$compile(nodes)($scope);
+
+				$element.append(nodes);
+			});
+		}],
+		controllerAs: 'structureCtrl'
+	};
+}
+DirectoryStructureFactory.$inject = ["$process", "$compile", "EditorService", "DirectoryStructure"];
+
+angular.module('textEditor')
+.directive('nodeHasChildren', ["$animate", "$helpers", function ($animate, $helpers) {
+	function postLink (scope, element, attrs) {
+		var apply = $helpers.digest(scope);
+
+		function addClass(addClass) {
+			removeClass(false);
+		}
+
+		function removeClass(rly) {
+			apply(function () {
+				$animate[rly === false && 'addClass' ||
+				_.isUndefined(rly) && 'removeClass'](element, 'opened')
+			});
+		}
+
+		element.on('click', function (event) {
+			var targetEl 	= event.target;
+			var tagName 	= targetEl.tagName;
+
+			if(!((targetEl.tagName === 'A') &&
+				targetEl.parentNode === element[0])) {
+				return;
+			}
+
+			var hasClass = element.hasClass('opened');
+
+			if(hasClass) {
+				removeClass();
+			} else {
+				addClass();
+			}
+		});
+	}
+
+	return {
+		compile: function (element, attrs) {
+			element
+			.children('a')
+			.append('<i class="chevron">');
+
+			return postLink;
+		}
+	};
+}])
+.directive('directoryStructure', DirectoryStructureFactory);
+function EditorController($scope) {
+}
+EditorController.$inject = ["$scope"];
+
+angular.module('textEditor')
+.config(["$stateProvider", function ($stateProvider) {
+	$stateProvider
+	.state('app.editor', {
+		url: '/editor',
+		templateUrl: 'app-editor/app-editor.html',
+		controller: EditorController,
+		controllerAs: 'editorCtrl'
+	});
+}]);
 var _ 						= require('lodash');
-var fs 						= require('fs');
+var fs 						= require('../modules/fs');
 var util						= require('util');
 var some					= _.some;
 var first					= _.first;
@@ -83,9 +230,21 @@ Tab.prototype = {
 	},
 
 	updateFileContent: function () {
+		var self = this;
+
 		if(!this.file.content) {
-			this.updateContent(fs.readFileSync(this.file.path).toString());
+			fs.readFile(this.file.path).then((data) => {
+				self.updateContent(data.toString());
+			});
 		}
+	},
+
+	saveFile: function () {
+		var sessionValue = this.editorSession.getValue();
+
+		this.updateContent(sessionValue);
+
+		return fs.writeFile(this.file.path, sessionValue);
 	},
 
 	getFileContent: function () {
@@ -107,12 +266,23 @@ Tab.prototype = {
 extend(Tab.prototype, EventEmitter.prototype);
 
 function TextEditor(element, options) {
+	var self = this;
+
 	EventEmitter.call(this);
 
 	this.element = element;
 	this.node = this.element[0];
 
 	this.initAce();
+
+	this.on('saveActualTab', function () {
+		this.emit('savingActualTab');
+
+		var tab = this.getActiveTab();
+		tab.saveFile().then(function () {
+			self.emit('saveActualTabSuccess');
+		});
+	});
 
 	this.on('tabChanged', function (tab) {
 		this.editor.setSession(tab.getEditorSession());
@@ -124,6 +294,24 @@ function TextEditor(element, options) {
 
 	this.on('errorUndefinedOption', function (key, value) {
 		console.info(`[ERROR] undefined option value (${key}: ${value})`);
+	});
+
+	function onKeypress(e) {
+		// Ctrl
+		if(e.ctrlKey) {
+			switch(e.keyCode) {
+				// S
+				case 19:
+					self.emit('saveActualTab');
+					break;
+			}
+		}
+	}
+	this.on('focus', function () {
+		document.addEventListener('keypress', onKeypress);
+	});
+	this.on('blur', function () {
+		document.removeEventListener('keypress', onKeypress);
 	});
 
 	this.setOptions(options);
@@ -139,13 +327,22 @@ function TextEditor(element, options) {
 TextEditor.prototype = {
 	options: {},
 
+	/**
+	 * Events to clone from ACE editor instance
+	 * to be reemited by TextEditor constructor
+	 */
+	events: ['blur', 'focus', 'change', 'changeSession'],
+
 	initAce: function () {
 		var self = this;
 
 		this.editor = ace.edit(this.node);
-		this.editor.on('change', function (e) {
-			self.emit('change', e);
-		});
+
+		_.forEach(this.events, function (evtName) {
+			this.editor.on(evtName, function (e) {
+				self.emit(evtName, e);
+			});
+		}, this);
 	},
 
 	getValue: function () {
@@ -201,6 +398,7 @@ TextEditor.prototype = {
 			name: 'untitled',
 			path: getId()
 		};
+
 		var session = new EditSession('type me out');
 		session.setUndoManager(new UndoManager());
 		var tab = new Tab(file, session);
@@ -314,15 +512,18 @@ function TextEditorFactory () {
 	return TextEditor;
 }
 
-function EditorServiceFactory() {
+function EditorServiceFactory($q) {
 	function EditorService () {
 		EventEmitter.call(this);
+
+		this.registry = {};
 	}
 	EditorService.prototype = {
-		setEditor: function (key, value) {
+		register: function (key, value) {
 			this.registry[key] = value;
 
 			this.emit('editorRegistered', key);
+			this.emit(`${key}:editorRegistered`, value);
 
 			return this;
 		},
@@ -330,15 +531,24 @@ function EditorServiceFactory() {
 		getEditor: function (key) {
 			var self = this;
 
-			return this.registry[key]
-		},
+			var editor = this.registry[key];
 
-		registry: {}
+			if(isUndefined(editor)) {
+				return $q(function (resolve, reject) {
+					self.on(`${key}:editorRegistered`, function (editor) {
+						resolve(editor);
+					});
+				});
+			}
+
+			return editor;
+		}
 	};
 	extend(EditorService.prototype, EventEmitter.prototype);
 
 	return new EditorService();
 }
+EditorServiceFactory.$inject = ["$q"];
 
 angular.module('textEditor')
 .factory('EditorService', EditorServiceFactory)
@@ -459,140 +669,3 @@ angular.module('textEditor')
 .factory('DirectoryStructure', function () {
 	return DirectoryStructure;
 });
-angular.module('textEditor')
-.directive('textEditor', ["TextEditor", "EditorService", function (TextEditor, EditorService) {
-	return {
-		scope: {
-			theme: '=theme'
-		},
-		link: function (scope, element, attrs) {
-			var textEditor = new TextEditor(element);
-
-			EditorService.setEditor('default', textEditor);
-
-			scope.$watch('theme', function (themeName) {
-				textEditor.setOption('theme', themeName);
-			});
-
-			textEditor.on('change', function () {
-				if(!(scope.$$phase || scope.$root.$$phase)) {
-					scope.$apply();
-				}
-			});
-		}
-	};
-}]);
-angular.module('textEditor')
-.directive('tabsList', ["EditorService", function (EditorService) {
-	return {
-		restrict: 'E',
-		controller: ["$scope", "$element", "$attrs", function ($scope, $element, $attrs) {
-			var defaultEditor = EditorService.getEditor('default');
-
-			$scope.tabs = defaultEditor.tabs;
-			$scope.setTabActive = function (tab) {
-				defaultEditor.setTabActive(tab);
-			};
-
-			$scope.isActive = function (tab) {
-				var activeTab = defaultEditor.getActiveTab();
-
-				return activeTab && activeTab.id === tab.id;
-			};
-		}],
-		templateUrl: 'app-editor/tabs-list.html'
-	};
-}])
-function DirectoryStructureFactory ($process, $compile, EditorService, DirectoryStructure) {
-	return {
-		scope: {
-			nodes: '=nodes'
-		},
-		controller: ["$scope", "$element", "$attrs", function ($scope, $element, $attrs) {
-			var cwd = $process.cwd();
-
-			var defaultEditor = EditorService.getEditor('default');
-
-			this.readFile = function (file) {
-				defaultEditor.readFile(file);
-			};
-
-			this.isActive = function (file) {
-				var activeTab = defaultEditor.getActiveTab();
-				return activeTab && activeTab.compareFile(file);
-			};
-
-			DirectoryStructure.getStructure().then(function (directoryStructure) {
-				var nodes = directoryStructure.getElements();
-
-				nodes.addClass('files-list');
-
-				$compile(nodes)($scope);
-
-				$element.append(nodes);
-			});
-		}],
-		controllerAs: 'structureCtrl'
-	};
-}
-DirectoryStructureFactory.$inject = ["$process", "$compile", "EditorService", "DirectoryStructure"];
-
-angular.module('textEditor')
-.directive('nodeHasChildren', ["$animate", "$helpers", function ($animate, $helpers) {
-	function postLink (scope, element, attrs) {
-		var apply = $helpers.digest(scope);
-
-		function addClass(addClass) {
-			removeClass(false);
-		}
-
-		function removeClass(rly) {
-			apply(function () {
-				$animate[rly === false && 'addClass' ||
-				_.isUndefined(rly) && 'removeClass'](element, 'opened')
-			});
-		}
-
-		element.on('click', function (event) {
-			var targetEl 	= event.target;
-			var tagName 	= targetEl.tagName;
-
-			if(!(targetEl.tagName === 'A' && targetEl.parentNode === element[0])) {
-				return;
-			}
-
-			var hasClass = element.hasClass('opened');
-
-			if(hasClass) {
-				removeClass();
-			} else {
-				addClass();
-			}
-		});
-	}
-
-	return {
-		compile: function (element, attrs) {
-			element
-			.children('a')
-			.append('<i class="chevron">');
-
-			return postLink;
-		}
-	};
-}])
-.directive('directoryStructure', DirectoryStructureFactory);
-function EditorController($scope) {
-}
-EditorController.$inject = ["$scope"];
-
-angular.module('textEditor')
-.config(["$stateProvider", function ($stateProvider) {
-	$stateProvider
-	.state('app.editor', {
-		url: '/editor',
-		templateUrl: 'app-editor/app-editor.html',
-		controller: EditorController,
-		controllerAs: 'editorCtrl'
-	});
-}]);

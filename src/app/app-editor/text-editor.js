@@ -7,7 +7,7 @@ angular.module('textEditor')
 		link: function (scope, element, attrs) {
 			var textEditor = new TextEditor(element);
 
-			EditorService.setEditor('default', textEditor);
+			EditorService.register('default', textEditor);
 
 			scope.$watch('theme', function (themeName) {
 				textEditor.setOption('theme', themeName);

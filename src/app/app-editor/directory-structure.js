@@ -6,10 +6,19 @@ function DirectoryStructureFactory ($process, $compile, EditorService, Directory
 		controller: function ($scope, $element, $attrs) {
 			var cwd = $process.cwd();
 
-			var defaultEditor = EditorService.getEditor('default');
+			var defaultEditor;
+			var editorPromise = EditorService.getEditor('default').then(function (editor) {
+				defaultEditor = editor;
+
+				return editor;
+			});
 
 			this.readFile = function (file) {
-				defaultEditor.readFile(file);
+				var fileName = file.match(/([^\/]+)$/)[1];
+
+				editorPromise.then(function (editor) {
+					editor.readFile({ path: file, name: fileName });
+				});
 			};
 
 			this.isActive = function (file) {
@@ -51,7 +60,8 @@ angular.module('textEditor')
 			var targetEl 	= event.target;
 			var tagName 	= targetEl.tagName;
 
-			if(!(targetEl.tagName === 'A' && targetEl.parentNode === element[0])) {
+			if(!((targetEl.tagName === 'A') &&
+				targetEl.parentNode === element[0])) {
 				return;
 			}
 

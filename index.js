@@ -1,6 +1,10 @@
 var app = require('app');  // Module to control application life.
 var BrowserWindow = require('browser-window');  // Module to create native browser window.
 
+// Set v8 flags
+app.commandLine.appendSwitch('js-flags', '--harmony_modules');
+app.commandLine.appendSwitch('js-flags', '--harmony_arrow_functions');
+
 // Report crashes to our server.
 require('crash-reporter').start();
 

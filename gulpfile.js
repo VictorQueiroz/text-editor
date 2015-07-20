@@ -28,7 +28,8 @@ gulp.task('indexPage', function () {
 	gulp.src(PATHS.indexPage)
 	.pipe(wiredep({
 		exclude: [
-			/bootstrap/
+			/bootstrap/,
+			/jquery/
 		]
 	}))
 	.pipe(gulp.dest('www'));
