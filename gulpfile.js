@@ -4,6 +4,7 @@ var jade 				= require('gulp-jade');
 var sort 				= require('gulp-sort');
 var sass 				= require('gulp-sass');
 var concat			= require('gulp-concat');
+var wrapper			= require('gulp-wrapper');
 var wiredep			= require('wiredep').stream;
 var livereload		= require('gulp-livereload');
 var ngAnnotate	= require('gulp-ng-annotate');
@@ -51,7 +52,16 @@ gulp.task('scripts', function () {
 	}))
 	.pipe(ngAnnotate())
 	.pipe(concat('app.js'))
+	.pipe(wrapper({
+		header: `(function() { 'use strict';`,
+		footer: `}());`
+	}))
 	.pipe(gulp.dest('www/js'));
+});
+
+gulp.task('assets', function () {
+	gulp.src('src/assets/**/*.*')
+	.pipe(gulp.dest('www/assets'));
 });
 
 gulp.task('templates', function () {

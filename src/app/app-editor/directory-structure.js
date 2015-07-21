@@ -34,6 +34,8 @@ function DirectoryStructureFactory ($process, $compile, EditorService, Directory
 				$compile(nodes)($scope);
 
 				$element.append(nodes);
+			}, function (err) {
+				console.log(err);
 			});
 		},
 		controllerAs: 'structureCtrl'

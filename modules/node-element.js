@@ -21,7 +21,7 @@ _.extend(NodeElement.prototype, Node.prototype, {
 	},
 
 	getPath: function () {
-		lastParent = this.getParent() || this;
+		lastParent = this;
 
 		var path = [];
 
@@ -29,19 +29,35 @@ _.extend(NodeElement.prototype, Node.prototype, {
 			path.push(lastParent.getName());
 
 			lastParent = lastParent.hasParent() && lastParent.getParent() || undefined;
-		} while(lastParent);
+		} while(angular.isDefined(lastParent));
 
 		return path.reverse().join('/');
+	},
+
+	setAsFile: function () {
+		this.node.removeAttribute('node-has-children');
+		this.node.setAttribute('node-is-file', '');
+	},
+
+	setAsFolder: function () {
+		this.node.removeAttribute('node-is-file');
+		this.node.setAttribute('node-has-children', '');
 	},
 
 	getNode: function () {
 		var node = this.node;
 
 		if(this.hasChild()) {
-			node.setAttribute('node-has-children', '');
+			this.setAsFolder();
 		} else {
-			node.setAttribute('node-is-file', '');
-			node.setAttribute('ng-click', `structureCtrl.readFile('${this.getPath()}')`);
+			this.setAsFile();
+
+			var anchorEl = node.querySelector('li[node-is-file] > a');
+
+			if(anchorEl) {
+				anchorEl
+				.setAttribute('ng-click', `structureCtrl.readFile('${this.getPath()}')`);
+			}
 		}
 
 		return node;

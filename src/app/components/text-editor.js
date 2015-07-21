@@ -9,6 +9,7 @@ var isEmpty				= _.isEmpty;
 var isEqual				= _.isEqual;
 var isArray				= _.isArray;
 var forEach				= _.forEach;
+var inherits				= require('../modules/inherits');
 var defaults				= _.defaults;
 var EditSession 		= ace.require('ace/edit_session').EditSession;
 var UndoManager 	= ace.require('ace/undomanager').UndoManager;
@@ -21,8 +22,53 @@ function getId() {
 	return id;
 }
 
-function Tab (file, editorSession) {
+function PromiseQueue() {
 	EventEmitter.call(this);
+
+	this.promiseQueue = [];
+	this.promiseQueueErr = [];
+}
+PromiseQueue.prototype = {
+	addErrorPromise: function (promise, err) {
+		this.promiseQueueErr.push([promise,err]);
+	},
+
+	addPromise: function (promise) {
+		var self = this;
+
+		this.emit('promiseAdded');
+
+		this.promiseQueue.push(promise);
+
+		promise.catch(function (err) {
+			self.addErrorPromise(promise, err);
+		}).finally(function () {
+			self.removePromise(promise);
+		});
+
+		return promise;
+	},
+
+	getPromiseIndex: function (promise) {
+		return this.promiseQueue.indexOf(promise);
+	},
+
+	removePromise: function (promise) {
+		var promiseIndex = this.getPromiseIndex(promise);
+
+		this.promiseQueue.splice(promiseIndex, 1);
+
+		this.emit('promiseRemoved');
+	},
+
+	isLoading: function () {
+		return this.promiseQueue.length > 0;
+	}
+};
+inherits(PromiseQueue, EventEmitter);
+
+function Tab (file, editorSession) {
+	PromiseQueue.call(this);
 
 	this.id = getId();
 	this.file = file;
@@ -75,9 +121,11 @@ Tab.prototype = {
 	saveFile: function () {
 		var sessionValue = this.editorSession.getValue();
 
+		this.emit('saving');
+
 		this.updateContent(sessionValue);
 
-		return fs.writeFile(this.file.path, sessionValue);
+		return this.addPromise(fs.writeFile(this.file.path, sessionValue));
 	},
 
 	getFileContent: function () {
@@ -96,7 +144,7 @@ Tab.prototype = {
 		return this.editorSession;
 	}
 };
-extend(Tab.prototype, EventEmitter.prototype);
+inherits(Tab, PromiseQueue);
 
 function TextEditor(element, options) {
 	var self = this;
@@ -109,11 +157,12 @@ function TextEditor(element, options) {
 	this.initAce();
 
 	this.on('saveActualTab', function () {
-		this.emit('savingActualTab');
-
 		var tab = this.getActiveTab();
+
+		this.emit('savingActualTab', tab);
+
 		tab.saveFile().then(function () {
-			self.emit('saveActualTabSuccess');
+			self.emit('saveActualTabSuccess', tab);
 		});
 	});
 
@@ -158,7 +207,9 @@ function TextEditor(element, options) {
 }
 
 TextEditor.prototype = {
-	options: {},
+	options: {
+		enableBasicAutocompletion: true
+	},
 
 	/**
 	 * Events to clone from ACE editor instance
@@ -176,6 +227,16 @@ TextEditor.prototype = {
 				self.emit(evtName, e);
 			});
 		}, this);
+	},
+
+	getOption: function (key) {
+		return this.editor.getOption(key);
+	},
+
+	setFontSize: function (size) {
+		this.editor.setFontSize(size);
+
+		return this;
 	},
 
 	getValue: function () {
@@ -207,7 +268,13 @@ TextEditor.prototype = {
 	activeTab: 0,
 
 	addTab: function (tab) {
+		var self = this;
+
 		this.tabs.push(tab);
+
+		tab.on('saving', function () {
+			self.emit('savingTab', tab);
+		});
 
 		return tab;
 	},
@@ -310,22 +377,68 @@ TextEditor.prototype = {
 		});
 	},
 
+	checkFileValidity: function (path) {
+		var deferred = Q.defer();
+
+		fs.exists(path).then(function () {
+			return fs.stat(path).then(function (stat) {
+				if(stat.isFile()) {
+					deferred.resolve();
+				} else {
+					deferred.reject();
+				}
+			});
+		});
+
+		return deferred.promise;
+	},
+
+	modes: {
+		js: {
+			aliases: ['js'],
+			name: 'javascript'
+		}
+	},
+
+	getModeFromFile: function (file) {
+		var mode = require('path').extname(file).replace(/^\./, '');
+
+		// Check for alias
+		forEach(this.modes, function (value) {
+			if(value.aliases.indexOf(mode) > -1) {
+				mode = value.name;
+			}
+		}, this);
+
+		return mode;
+	},
+
 	readFile: function (file) {
 		var self = this;
 
-		if(this.tabExists(file)) {
-			this.setTabActive(this.getTabByFile(file).id);
-			return;
-		}
+		return this.checkFileValidity(file.path).then(() => {
+			if(self.tabExists(file)) {
+				self.setTabActive(self.getTabByFile(file).id);
+				return;
+			}
 
-		var session = new EditSession('');
-		session.setUndoManager(new UndoManager());
+			var session = new EditSession('');
+			session.setUndoManager(new UndoManager());
 
-		var tab = this.addTab(new Tab(file, session));
-		this.setTabActive(tab);
+			var mode = self.getModeFromFile(file.path);
 
-		tab.once('destroy', function () {
-			self.removeTab(tab);
+			if(mode) {
+				session.setMode(mode);
+			}
+
+			var tab = self.addTab(new Tab(file, session));
+			self.setTabActive(tab);
+
+			tab.once('destroy', function () {
+				self.removeTab(tab);
+			});
+		}, function (err) {
+			console.log(err);
 		});
 	},
 

@@ -1,5 +1,5 @@
 ul.tabs-list(ng-show="tabs.length > 0")
-	li(ng-repeat="tab in tabs track by $index", ng-click="setTabActive(tab)", ng-class="{ active: isActive(tab) }")
+	li(ng-repeat="tab in tabs track by $index", ng-click="setTabActive(tab)", ng-class="{ active: isActive(tab), loading: tab.isLoading() }")
 		a
 			.tab-text {{ tab.file.name }}
 			.tab-icon

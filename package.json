@@ -17,6 +17,7 @@
     "gulp-ng-templates": "0.0.6",
     "gulp-sass": "^2.0.4",
     "gulp-sort": "^1.1.1",
+    "gulp-wrapper": "^1.0.0",
     "wiredep": "^2.2.2"
   },
   "dependencies": {
@@ -25,3 +26,7 @@
     "q": "^1.4.1"
   }
 }
+
+
+
+

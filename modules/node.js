@@ -1,3 +1,8 @@
+var _ 						= require('lodash');
+var first 					= _.first;
+var filter 				= _.filter;
+var isUndefined 		= _.isUndefined;
+
 function Node(name) {
 	this.name = name;
 	this.childrens = [];

@@ -13,6 +13,19 @@ module.exports = {
 		});
 		return deferred.promise;
 	},
+	exists: function (path) {
+		var deferred = Q.defer();
+
+		fs.exists(path, function (exists) {
+			if(exists) {
+				deferred.resolve();
+			} else {
+				deferred.reject();
+			}
+		});
+
+		return deferred.promise;
+	},
 	readdir: function (path) {
 		var deferred = Q.defer();
 

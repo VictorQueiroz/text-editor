@@ -5,6 +5,10 @@ angular.module('textEditor')
 		controller: function ($scope, $element, $attrs) {
 			var defaultEditor = EditorService.getEditor('default');
 
+			defaultEditor.on('savingTab', function (tab) {
+				$scope.$apply();
+			});
+
 			$scope.tabs = defaultEditor.tabs;
 			$scope.setTabActive = function (tab) {
 				defaultEditor.setTabActive(tab);
